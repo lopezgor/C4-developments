@@ -6,7 +6,7 @@
 #
 #  PARAMETERS: + PO_CODE · Projects Office Code
 #	       + APP_CODE · APPlication Code
-#	       + TAG · NOT IN USE!!! 
+#	       + TAG · deprecated, not more in use!!! 
 #	       + APPSERV_TYPE · Application Server Type (JBOSS or WAS)
 #	       + DEPLOY_CONFIG · TRUE or FALSE Configuration Deployment
 #	       + BATCH_DIR · BATCH Environment Directory (e.g.: apliccoper, aplicref)
@@ -26,11 +26,9 @@
 #     PURPOSE: deployment script for batch and online (with or without configuration) artifacts 
 #
 # DESCRIPTION:+ the script is divided in two sections:
-#		+ Section One: an initial section for retrieving the artifacts to be deployed considering two approachings (through 'DEPLOY_METHOD' parameter)
-#			+ V1 (LEGACY): from 'deploy.sh' the 'get-qa-files.sh' script in the Batch and jboss host is invoked, for the downloading from the
-#			  QA repository of all artifacts, carrying out the preparation for the subsequent deployment in the Section Two of the 'deploy.sh'
-#			+ V2 (CINTEGRATION): desde 'deploy.sh' se recogen los ficheros del repositorio de Integración Continua
-#			  para dejarlos en la misma ubicacion que con la V1
+#		+ Section One: an initial section for making up the name of the differents artficats to be deployed considering two approachings ('DEPLOY_METHOD')
+#			+ V1 (LEGACY): the actual deployment invocation
+#			+ V2 (CINTEGRATION): the location 
 #		+ Section Two: carrying out of deployment and possible rollback case of error
 #
 #  PARAMETROS: 
@@ -39,53 +37,54 @@
 
 clear;                                             
 
-if [ $# -lt 12 ]; then    
-    ## Elimination of TAG variable
+if [ $# -lt 12 ]; then
+    ## Delete of TAG parameter
     ## echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|12 Parameters are required for deploy a TAG : PO_CODE, APP_CODE, TAG, ENV, DEPLOY_CONFIG, ENV_DIR, ENV_BATCH, BATCH_HOST, JBOSS_HOST, DEPLOY_METHOD, ARTIFACT_ID, GROUP_ID"
     echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|12 Parameters are required for deploying a TAG : PO_CODE, APP_CODE, ENV, DEPLOY_CONFIG, ENV_DIR, ENV_BATCH, BATCH_HOST, JBOSS_HOST, DEPLOY_METHOD, ARTIFACT_ID, GROUP_ID"
     exit 1
 fi
 
-#---------------------------------
+#----------------------------------------------------------
 #
 # SECTION ONE
 #
 #	Artifacts retrieving according DEPLOY_METHOD type
 #
-#---------------------------------
+#----------------------------------------------------------
 
-#---------------------------------
+#----------------------------------------------------------
 # Variable initialization
-#---------------------------------
+#----------------------------------------------------------
 LEGACY_DEPLOY_MODE="V1"
 CINTEGRATION_DEPLOY_MODE="V2"
 
-#---------------------------------
-# Recogida de los parametros del script
-#---------------------------------
+#----------------------------------------------------------
+# Variables assignment through parameters input
+#----------------------------------------------------------
 echo "###################################################"
 echo " + COMIENZO DEPLOY"
 echo " + PARAMETROS : "
-echo " +    PO_CODE              = "$PO_CODE 
-echo " +    COD_AP              = "$COD_AP
-echo " +    TAG                 = "$TAG
-echo " +    SERV                = "$SERV
-echo " +    OPER                = "$BATCH_HOST
-echo " +    JBOSS               = "$JBOSS_HOST
-echo " +    DEPLOY_CONFIG                = "$DEPLOY_CONFIG
-echo " +    BATCH_DIR         = "$BATCH_DIR
-echo " +    ENV             = "$ENV
-echo " +    BATCH_HOST          = "$BATCH_HOST
-echo " +    JBOSS_HOST          = "$JBOSS_HOST
-echo " +    DEPLOY_METHOD       = "$DEPLOY_METHOD
-echo " +    ARTIFACT_REPO  = "$ARTIFACT_REPO
-echo " +    VERSION             = "$VERSION
-echo " +    ARTIFACT_ID          = "$ARTIFACT_ID
-echo " +    GROUP_ID             = "$GROUP_ID
+echo " +          PO_CODE = "$PO_CODE 
+echo " +           COD_AP = "$COD_AP
+#echo " +              TAG = "$TAG
+echo " +             SERV = "$SERV
+echo " +             OPER = "$BATCH_HOST
+echo " +            JBOSS = "$JBOSS_HOST
+echo " +    DEPLOY_CONFIG = "$DEPLOY_CONFIG
+echo " +        BATCH_DIR = "$BATCH_DIR
+echo " +              ENV = "$ENV
+echo " +       BATCH_HOST = "$BATCH_HOST
+echo " +       JBOSS_HOST = "$JBOSS_HOST
+echo " +    DEPLOY_METHOD = "$DEPLOY_METHOD
+echo " +    ARTIFACT_REPO = "$ARTIFACT_REPO
+echo " +          VERSION = "$VERSION
+echo " +      ARTIFACT_ID = "$ARTIFACT_ID
+echo " +         GROUP_ID = "$GROUP_ID
 echo "###################################################"
 
+echo "BEGIN of Artifact Name Making Up"
 
-#-- DEPLOY_METHOD checking
+#-- DEPLOY_METHOD Compliance Checking
 echo $LEGACY_DEPLOY_MODE" "$CINTEGRATION_DEPLOY_MODE | grep -q $DEPLOY_METHOD
 retVal=$?
 if [ "$retVal" -ne 0 ]; then
@@ -93,41 +92,50 @@ if [ "$retVal" -ne 0 ]; then
     exit 1      
 fi     
 
-#---------------------------------
+#----------------------------------------------------------
 # Artifacts Retrieving according to DEPLOY_METHOD
-#---------------------------------
+#----------------------------------------------------------
 
 #-- Common to the two DEPLOY_METHOD variants
 
-    #-- Find and replace all (//) ocurrence of '_ES' with 'InstalablesSH_Es' within the VERSION literal
-    INSTALABLE_BATCH=${VERSION//_ES/InstalablesSH_ES}".zip"
+#--------------------------------------
+#-- INSTALABLE_BATCH
+#--
+#-- Find and replace all (//) ocurrence of '_ES' with
+#-- 'InstalablesSH_Es' within the VERSION literal
+#--------------------------------------
+INSTALABLE_BATCH=${VERSION//_ES/InstalablesSH_ES}".zip"
 
+#--------------------------------------
+#-- TAG
+#--
+#-- With the V1 version, VERSION includes
+#-- the full file name needed by TAG
+#--------------------------------------
+TAG=$VERSION
+
+#--------------------------------------
+#-- CONFIG_APP
+#--
+#-- CONFIG_APP doesn't change between V1 and V2
+#--------------------------------------
+CONFIG_APP=${TAG//_ES/Configuration_ES}".rar"
+
+if [ $DEPLOY_METHOD = $CINTEGRATION_DEPLOY_MODE ]; then
+    #-- With V2 TAG is formed with the conjunction of ARTIFACT_ID and VERSION 
+    TAG=$ARTIFACT_ID_$VERSION
     
-#*
-#if [ $DEPLOY_METHOD = $LEGACY_DEPLOY_MODE ]; then
-#    -- rgordo comments: si instalable_batch lo inicializa igual que con la V2 por qué no lo sacas fuera?
-#    INSTALABLE_BATCH=${VERSION//_ES/InstalablesSH_ES}".zip"
-    
-#elif [ $DEPLOY_METHOD = $CINTEGRATION_DEPLOY_MODE ]; then
-    #copia los artefactos del bote de integracion continua al bote del generador de instalables
-    #y verifica que
-#    INSTALABLE_BATCH=${VERSION//_ES/InstalablesSH_ES}".zip"
-
-    if [ $DEPLOY_METHOD = $CINTEGRATION_DEPLOY_MODE ]; then
-	TAG=$ARTIFACT_ID_$VERSION
-	CONFIG_APP=${TAG//_ES/Configuration_ES}".rar"
-	EAR=$ARTIFACT_ID_$VERSION.ear
-
-    #-- rgordo comments
-    #	Comprueba que todos los artifacts existen
-    checkArtifact $INSTALABLE_BATCH
+    #-- INSTALABLE_BATCH Artifact existence check
+    check_artifact $INSTALABLE_BATCH
     ret_instalable=$?
     
-    checkArtifact $CONFIG_APP
-    ret_config=$?
-    
-    checkArtifact $EAR
+    #-- EAR Artifact existence check
+    check_artifact $ARTIFACTID_$VERSION.ear
     ret_ear=$?
+    
+    #-- CONFIG_APP Artifact existence check
+    check_artifact $CONFIG_APP
+    ret_config=$?
     
     if [ "$ret_instalable" -ne 0 ] || [ "$ret_config" -ne 0 ] || [ "$ret_ear" -ne 0 ]; then
 	echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Failure to find artifacts."
@@ -135,14 +143,14 @@ fi
     fi 
 fi    
 
-echo "fin"
+echo "END of Artifact Name Making Up"
 exit 0
 
-#---------------------------------
+#----------------------------------------------------------
 # Invocation of 'init-deploy.sh' on the BATCH_HOST in order to check the compliance
 #
 # -- invocation & parameters: init-deploy.sh $PO_CODE $INSTALABLE_BATCH $BATCH_DIR $APP_CODE $ENV
-#---------------------------------
+#----------------------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Init deploy $APP_CODE $TAG"
 ssh -t iecontin@$BATCH_HOST "sudo -u ubatch /opt/apps/carrefour/scripts/integracion_continua/BATCH/init-deploy.sh $PO_CODE $INSTALABLE_BATCH $BATCH_DIR $APP_CODE $ENV"
 retVal=$?
@@ -157,11 +165,11 @@ echo `date "+%Y-%m-%d %H:%M:%S"`"|START-GLOBAL|Deployment TAG : "$TAG
 echo ""
 
 
-#---------------------------------
+#----------------------------------------------------------
 # EAR Downloading
 #
 # -- invocation & parameters: get-qa-files.sh $APP_CODE $TAG.ear
-#---------------------------------
+#----------------------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Downloading EAR file $TAG.ear"
 ssh -t iecontin@$JBOSS_HOST "sudo -u uwassrv /opt/apps/carrefour/scripts/integracion_continua/JBOSS/get-qa-files.sh $APP_CODE $TAG.ear" 2>&1 >/dev/null
 ret=$?
@@ -174,11 +182,11 @@ else
     echo ""
 fi
 
-#---------------------------------
+#----------------------------------------------------------
 # Configuration Online Downloading
 #
 # -- invocation & parameters: get-qa-files.sh $COD_AP $CONFIG_APP
-#---------------------------------
+#----------------------------------------------------------
 if [ $DEPLOY_CONFIG == "SI" ]; then
     CONFIG_APP=${TAG//_ES/Configuration_ES}".rar"	
     echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Downloading EAR config. file $CONFIG_APP"
@@ -194,11 +202,11 @@ if [ $DEPLOY_CONFIG == "SI" ]; then
     fi
 fi
 
-#---------------------------------
-# instalable_batch Downloading and deployment preparation
+#----------------------------------------------------------
+# INSTALABLE_BATCH Downloading and deployment preparation
 #
 # -- invocation & parameters: get-qa-files.sh $COD_AP $CONFIG_APP
-#---------------------------------
+#----------------------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Downloading InstalableSH file $INSTALABLE_BATCH"
 ssh -t iecontin@$BATCH_HOST "sudo PATH=$PATH:.:/usr/local/bin -u ubatch /opt/apps/carrefour/scripts/integracion_continua/BATCH/get-qa-files.sh $PO_CODE $INSTALABLE_BATCH $BATCH_DIR $APP_CODE"
 ret=$?
@@ -211,17 +219,19 @@ else
     echo ""
 fi
 
-#---------------------------------
-# INSTALABLE_BATCH Downloading and deployment preparation
-#
-# -- invocation & parameters: get-qa-files.sh $COD_AP $CONFIG_APP
-#---------------------------------
+#----------------------------------------------------------
+# -- Stopping Application Server
+#----------------------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Stoping server for app $APP_CODE"
-stopServer "INSTALL"
+stop_server "INSTALL"
 retVal=$?
 if [ "$retVal" -ne 0 ]; then
     echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Problems stoping server for app $APP_CODE"
-    stopServer "ROLLBACK"
+
+    #-- rgordo Comments : habra que levantarlo, no?
+    #    stop_server "ROLLBACK"
+    <!-- start_server -->
+    
     retVal=$?
     if [ "$retVal" -ne 0 ]; then
 	echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Problems starting server for app $APP_CODE"
@@ -266,7 +276,7 @@ if [ $ret -ne 0 ]; then
     echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Can\`t install BBDD $INSTALABLE_BATCH (Rollback required)"
     deploy-bbdd "ROLLBACK"
     ret_rollback_bbdd=$?
-    startServer "INSTALL"
+    start_server "INSTALL"
     ret_start_server=$?
     if [ "$ret_rollback_bbdd" -ne 0 ] || [ "$ret_start_server" -ne 0 ]; then
 	echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Automtic rollback problems. Check enviroment !!!"
@@ -292,7 +302,7 @@ if [ $ret -ne 0 ]; then
     ret_rollback_bbdd=$?
     deploy-batch "ROLLBACK"
     ret_rollback_batch=$?
-    startServer "INSTALL"
+    start_server "INSTALL"
     ret_start_server=$?
     if [ "$ret_rollback_bbdd" -ne 0 ] || [ "$ret_rollback_batch" -ne 0 ] || [ "$ret_start_server" -ne 0 ]; then
 	echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Automtic rollback problems. Check enviroment !!!"
@@ -333,11 +343,11 @@ fi
 #########################################################
 # ARRANQUE DE APLICACION ONLINE                         #
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Starting server for app $APP_CODE"
-startServer "INSTALL"
+start_server "INSTALL"
 retVal=$?
 if [ "$retVal" -ne 0 ]; then
     
-    startServer "ROLLBACK"
+    start_server "ROLLBACK"
     retVal=$?
 
     if [ "$retVal" -ne 0 ]; then
@@ -384,12 +394,12 @@ exit 0
 # FUNCIONES AUXILIARES                                   #
 ##########################################################
 
-#---------------------------------
-#	FUNCTION: checkArtifact
-#
-#	 PURPOSE: 
-#---------------------------------
-checkArtifact()
+#=== FUNCTION ================================================================
+# NAME: check_artifact
+# DESCRIPTION: 
+# PARAMETER 1: ---
+#=============================================================================
+check_artifact()
 {
     FICHERO=$1
     #Comprobar que existen los artefactos a instalar
@@ -399,12 +409,12 @@ checkArtifact()
     fi  
 }
 
-#---------------------------------
-#	FUNCTION: stopServer
-#
-#	 PURPOSE: 
-#---------------------------------
-stopServer()
+#=== FUNCTION ================================================================
+# NAME: stop_server
+# DESCRIPTION: 
+# PARAMETER 1: ---
+#=============================================================================
+stop_server()
 {
     retVal=0
     
@@ -418,12 +428,12 @@ stopServer()
     return "$retVal"
 }
 
-#---------------------------------
-#	FUNCTION: startServer
-#
-#	 PURPOSE: 
-#---------------------------------
-startServer()
+#=== FUNCTION ================================================================
+# NAME: start_server
+# DESCRIPTION: 
+# PARAMETER 1: ---
+#=============================================================================
+start_server()
 {
     retVal=0
     
@@ -436,11 +446,11 @@ startServer()
     return "$retVal"
 }
 
-#---------------------------------
+#----------------------------------------------------------
 #	FUNCTION: deploy-ear
 #
 #	 PURPOSE: 
-#---------------------------------
+#----------------------------------------------------------
 deploy-ear()
 {
     retVal=0
@@ -449,17 +459,17 @@ deploy-ear()
         ssh -t iecontin@$JBOSS_HOST "sudo -u uwassrv /opt/apps/carrefour/scripts/integracion_continua/JBOSS/deploy-ear.sh $APP_CODE $TAG.ear" 2>&1 >/dev/null
         retVal=$?
     else
-        startServer "INSTALL"
+        start_server "INSTALL"
         retVal=$?
     fi
     return "$retVal"
 }
 
-#---------------------------------
+#----------------------------------------------------------
 #	FUNCTION: backup-ear
 #
 #	 PURPOSE: 
-#---------------------------------
+#----------------------------------------------------------
 backup-ear()
 {
     retVal=0
@@ -470,7 +480,7 @@ backup-ear()
     else
         echo `date "+%Y-%m-%d %H:%M:%S"`"|INFO|Starting server for app $APP_CODE"
         
-        startServer "INSTALL"        
+        start_server "INSTALL"        
         retVal=$?
         if [ "$retVal" -ne 0 ]; then
             echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Can\`t start server for app $APP_CODE!!!!"
@@ -483,11 +493,11 @@ backup-ear()
     return "$retVal"
 }
 
-#---------------------------------
+#----------------------------------------------------------
 #	FUNCTION: deploy-bbdd
 #
 #	 PURPOSE: 
-#---------------------------------
+#----------------------------------------------------------
 deploy-bbdd () 
 {
     retVal=0 
@@ -503,11 +513,11 @@ deploy-bbdd ()
     return "$retVal"
 }
 
-#---------------------------------
+#----------------------------------------------------------
 #	FUNCTION: deploy-batch
 #
 #	 PURPOSE: 
-#---------------------------------
+#----------------------------------------------------------
 deploy-batch ()
 {
     retVal=0 
@@ -523,11 +533,11 @@ deploy-batch ()
     return "$retVal"
 }
 
-#---------------------------------
+#----------------------------------------------------------
 #	FUNCTION: finish-deploy
 #
 #	 PURPOSE: 
-#---------------------------------
+#----------------------------------------------------------
 finish-deploy () 
 {
     retVal=0 
