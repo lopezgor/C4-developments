@@ -38,8 +38,8 @@
 clear;                                             
 
 if [ $# -lt 12 ]; then
-    ## Delete of TAG parameter
-    ## echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|12 Parameters are required for deploy a TAG : PO_CODE, APP_CODE, TAG, ENV, DEPLOY_CONFIG, ENV_DIR, ENV_BATCH, BATCH_HOST, JBOSS_HOST, DEPLOY_METHOD, ARTIFACT_ID, GROUP_ID"
+    # Delete of TAG parameter
+    # echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|12 Parameters are required for deploy a TAG : PO_CODE, APP_CODE, TAG, ENV, DEPLOY_CONFIG, ENV_DIR, ENV_BATCH, BATCH_HOST, JBOSS_HOST, DEPLOY_METHOD, ARTIFACT_ID, GROUP_ID"
     echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|12 Parameters are required for deploying a TAG : PO_CODE, APP_CODE, ENV, DEPLOY_CONFIG, ENV_DIR, ENV_BATCH, BATCH_HOST, JBOSS_HOST, DEPLOY_METHOD, ARTIFACT_ID, GROUP_ID"
     exit 1
 fi
@@ -48,12 +48,12 @@ fi
 #
 # SECTION ONE
 #
-#	Artifacts retrieving according DEPLOY_METHOD type
+#	Artifacts Name Making up through DEPLOY_METHOD type
 #
 #----------------------------------------------------------
 
 #----------------------------------------------------------
-# Variable initialization
+# CONSTANTS initialization
 #----------------------------------------------------------
 LEGACY_DEPLOY_MODE="V1"
 CINTEGRATION_DEPLOY_MODE="V2"
@@ -93,47 +93,42 @@ if [ "$retVal" -ne 0 ]; then
 fi     
 
 #----------------------------------------------------------
-# Artifacts Retrieving according to DEPLOY_METHOD
+# Artifacts Name  according to DEPLOY_METHOD
 #----------------------------------------------------------
 
-#-- Common to the two DEPLOY_METHOD variants
+# BEGIN of - Common to the two DEPLOY_METHOD variants - #
 
 #--------------------------------------
-#-- INSTALABLE_BATCH
-#--
-#-- Find and replace all (//) ocurrence of '_ES' with
-#-- 'InstalablesSH_Es' within the VERSION literal
+# INSTALABLE_BATCH Initialization
 #--------------------------------------
-INSTALABLE_BATCH=${VERSION//_ES/InstalablesSH_ES}".zip"
+INSTALABLE_BATCH=${VERSION//_ES/InstalablesSH_ES}".zip"  # Find and replace all (//) ocurrence of '_ES' with 'InstalablesSH_Es' within the VERSION literal
 
 #--------------------------------------
-#-- TAG
-#--
-#-- With the V1 version, VERSION includes
-#-- the full file name needed by TAG
+# TAG Initialization
 #--------------------------------------
-TAG=$VERSION
+TAG=$VERSION  # With the V1 version, VERSION includes the full file name needed by TAG
 
 #--------------------------------------
-#-- CONFIG_APP
-#--
-#-- CONFIG_APP doesn't change between V1 and V2
+# CONFIG_APP Initialization
 #--------------------------------------
-CONFIG_APP=${TAG//_ES/Configuration_ES}".rar"
+CONFIG_APP=${TAG//_ES/Configuration_ES}".rar"  # CONFIG_APP doesn't change between V1 and V2
+
+# END of - Common to the two DEPLOY_METHOD variants - #
+
 
 if [ $DEPLOY_METHOD = $CINTEGRATION_DEPLOY_MODE ]; then
-    #-- With V2 TAG is formed with the conjunction of ARTIFACT_ID and VERSION 
+    # With V2 TAG is formed with the conjunction of ARTIFACT_ID and VERSION 
     TAG=$ARTIFACT_ID_$VERSION
     
-    #-- INSTALABLE_BATCH Artifact existence check
+    # INSTALABLE_BATCH Artifact existence check
     check_artifact $INSTALABLE_BATCH
     ret_instalable=$?
     
-    #-- EAR Artifact existence check
+    # EAR Artifact existence check
     check_artifact $ARTIFACTID_$VERSION.ear
     ret_ear=$?
     
-    #-- CONFIG_APP Artifact existence check
+    # CONFIG_APP Artifact existence check
     check_artifact $CONFIG_APP
     ret_config=$?
     
@@ -148,8 +143,6 @@ exit 0
 
 #----------------------------------------------------------
 # Invocation of 'init-deploy.sh' on the BATCH_HOST in order to check the compliance
-#
-# -- invocation & parameters: init-deploy.sh $PO_CODE $INSTALABLE_BATCH $BATCH_DIR $APP_CODE $ENV
 #----------------------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Init deploy $APP_CODE $TAG"
 ssh -t iecontin@$BATCH_HOST "sudo -u ubatch /opt/apps/carrefour/scripts/integracion_continua/BATCH/init-deploy.sh $PO_CODE $INSTALABLE_BATCH $BATCH_DIR $APP_CODE $ENV"
@@ -164,11 +157,8 @@ echo `date "+%Y-%m-%d %H:%M:%S"`"|END|Init deploy $APP_CODE"
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START-GLOBAL|Deployment TAG : "$TAG
 echo ""
 
-
 #----------------------------------------------------------
 # EAR Downloading
-#
-# -- invocation & parameters: get-qa-files.sh $APP_CODE $TAG.ear
 #----------------------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Downloading EAR file $TAG.ear"
 ssh -t iecontin@$JBOSS_HOST "sudo -u uwassrv /opt/apps/carrefour/scripts/integracion_continua/JBOSS/get-qa-files.sh $APP_CODE $TAG.ear" 2>&1 >/dev/null
@@ -184,8 +174,6 @@ fi
 
 #----------------------------------------------------------
 # Configuration Online Downloading
-#
-# -- invocation & parameters: get-qa-files.sh $COD_AP $CONFIG_APP
 #----------------------------------------------------------
 if [ $DEPLOY_CONFIG == "SI" ]; then
     CONFIG_APP=${TAG//_ES/Configuration_ES}".rar"	
@@ -203,9 +191,7 @@ if [ $DEPLOY_CONFIG == "SI" ]; then
 fi
 
 #----------------------------------------------------------
-# INSTALABLE_BATCH Downloading and deployment preparation
-#
-# -- invocation & parameters: get-qa-files.sh $COD_AP $CONFIG_APP
+# INSTALABLE_BATCH Downloading
 #----------------------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Downloading InstalableSH file $INSTALABLE_BATCH"
 ssh -t iecontin@$BATCH_HOST "sudo PATH=$PATH:.:/usr/local/bin -u ubatch /opt/apps/carrefour/scripts/integracion_continua/BATCH/get-qa-files.sh $PO_CODE $INSTALABLE_BATCH $BATCH_DIR $APP_CODE"
@@ -220,7 +206,7 @@ else
 fi
 
 #----------------------------------------------------------
-# -- Stopping Application Server
+# Stopping Application Server
 #----------------------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Stoping server for app $APP_CODE"
 stop_server "INSTALL"
@@ -228,10 +214,8 @@ retVal=$?
 if [ "$retVal" -ne 0 ]; then
     echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Problems stoping server for app $APP_CODE"
 
-    #-- rgordo Comments : habra que levantarlo, no?
-    #    stop_server "ROLLBACK"
-    <!-- start_server -->
-    
+    stopServer "ROLLBACK" # rgordo: Que sentido tiene? no tiene contemplado siquiera ese parametro en la funcion.
+
     retVal=$?
     if [ "$retVal" -ne 0 ]; then
 	echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Problems starting server for app $APP_CODE"
@@ -245,16 +229,17 @@ else
     echo ""
 fi
 
-#########################################################
-# BACKUP DE APLICACION ONLINE                           #
+#-----------------------------------------------
+# Online EAR Backuping
+#-----------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Begining the backup of $APP_CODE"
-backup-ear "INSTALL"
+backup_ear "INSTALL"
 retVal=$?
 if [ "$retVal" -ne 0 ]; then
     echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Problems during the backup process of $APP_CODE"
-    backup-ear "ROLLBACK"
+    backup_ear "ROLLBACK"
     retVal=$?
-    # Por aqui nunca entraria, en rollback de backup-ear siempre se hace un exit.
+    # Por aqui nunca entraria, en rollback de backup_ear siempre se hace un exit.
     #if [ "$retVal" -ne 0 ]; then
     #   echo "    >> ERROR ($retVal) BACKUP APP : $APP_CODE"
     #   exit $retVal
@@ -267,16 +252,17 @@ else
     echo ""
 fi
 
-#########################################################
-# DEPLOY BASE DE DATOS                                  #
+#-----------------------------------------------
+# DB Deploying
+#-----------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Install BBDD ${TAG}"
-deploy-bbdd "INSTALL"
+deploy_bbdd "INSTALL"
 ret=$?
 if [ $ret -ne 0 ]; then
-    echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Can\`t install BBDD $INSTALABLE_BATCH (Rollback required)"
-    deploy-bbdd "ROLLBACK"
+    echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Can\`t install BBDD $INSTALABLE_BATCH (Rollback required)" # rgordo: realmente la parte de BBDD es de la parte BATCH?
+    deploy_bbdd "ROLLBACK"
     ret_rollback_bbdd=$?
-    start_server "INSTALL"
+    start_server "INSTALL" # rgordo: el start_server 
     ret_start_server=$?
     if [ "$ret_rollback_bbdd" -ne 0 ] || [ "$ret_start_server" -ne 0 ]; then
 	echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Automtic rollback problems. Check enviroment !!!"
@@ -291,16 +277,17 @@ else
     echo ""
 fi
 
-#########################################################
-# DEPLOY BATCH                                          #
+#-----------------------------------------------
+# BATCH Deploying
+#-----------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Install BATCH ${TAG}"
-deploy-batch "INSTALL"
+deploy_batch "INSTALL"
 ret=$?
 if [ $ret -ne 0 ]; then
     echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Can\`t install BATCH $INSTALABLE_BATCH (Rollback required)"
-    deploy-bbdd "ROLLBACK"
+    deploy_bbdd "ROLLBACK"
     ret_rollback_bbdd=$?
-    deploy-batch "ROLLBACK"
+    deploy_batch "ROLLBACK"
     ret_rollback_batch=$?
     start_server "INSTALL"
     ret_start_server=$?
@@ -318,14 +305,15 @@ else
 fi
 
 
-#########################################################
-# DESPLEGAR VERSION APLICACION ONLINE                   #
+#-----------------------------------------------
+# EAR Deploying
+#-----------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Begining the deployment of $TAG"
-deploy-ear "INSTALL"
+deploy_ear "INSTALL"
 retVal=$?
 if [ "$retVal" -ne 0 ]; then
     echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Problems during the deployment process of $APP_CODE"
-    deploy-ear "ROLLBACK"
+    deploy_ear "ROLLBACK"
     retVal=$?
     if [ "$retVal" -ne 0 ]; then
 	echo `date "+%Y-%m-%d %H:%M:%S"`"|ERROR|Problems starting server for app $APP_CODE"
@@ -340,8 +328,9 @@ else
     echo ""
 fi
 
-#########################################################
-# ARRANQUE DE APLICACION ONLINE                         #
+#-----------------------------------------------
+# APP SERVER Start
+#-----------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Starting server for app $APP_CODE"
 start_server "INSTALL"
 retVal=$?
@@ -363,14 +352,15 @@ else
     echo ""
 fi
 
-#########################################################
-# COPIA FICHERO VERSION                                 #
+#-----------------------------------------------
+# VERSION FILE Copy
+#-----------------------------------------------
 echo `date "+%Y-%m-%d %H:%M:%S"`"|START|Copying version file for app $APP_CODE"
-finish-deploy "INSTALL"
+finish_deploy "INSTALL"
 retVal=$?
 if [ "$retVal" -ne 0 ]; then
     
-    finish-deploy "ROLLBACK"
+    finish_deploy "ROLLBACK"
     retVal=$?
 
     if [ "$retVal" -ne 0 ]; then
@@ -390,9 +380,9 @@ echo `date "+%Y-%m-%d %H:%M:%S"`"|END-GLOBAL|Deployment TAG : "$TAG
 
 exit 0
 
-##########################################################
-# FUNCIONES AUXILIARES                                   #
-##########################################################
+#=============================================================================
+# AUXILIARY FUNCTIONS
+#=============================================================================
 
 #=== FUNCTION ================================================================
 # NAME: check_artifact
@@ -446,12 +436,12 @@ start_server()
     return "$retVal"
 }
 
-#----------------------------------------------------------
-#	FUNCTION: deploy-ear
-#
-#	 PURPOSE: 
-#----------------------------------------------------------
-deploy-ear()
+#=== FUNCTION ================================================================
+# NAME: deploy_ear
+# DESCRIPTION: 
+# PARAMETER 1: ---
+#=============================================================================
+deploy_ear()
 {
     retVal=0
     
@@ -465,12 +455,12 @@ deploy-ear()
     return "$retVal"
 }
 
-#----------------------------------------------------------
-#	FUNCTION: backup-ear
-#
-#	 PURPOSE: 
-#----------------------------------------------------------
-backup-ear()
+#=== FUNCTION ================================================================
+# NAME: backup_ear
+# DESCRIPTION: 
+# PARAMETER 1: ---
+#=============================================================================
+backup_ear()
 {
     retVal=0
     
@@ -493,12 +483,12 @@ backup-ear()
     return "$retVal"
 }
 
-#----------------------------------------------------------
-#	FUNCTION: deploy-bbdd
-#
-#	 PURPOSE: 
-#----------------------------------------------------------
-deploy-bbdd () 
+#=== FUNCTION ================================================================
+# NAME: deploy_bbdd
+# DESCRIPTION: 
+# PARAMETER 1: ---
+#=============================================================================
+deploy_bbdd () 
 {
     retVal=0 
     if [ $1 == "INSTALL" ]; then    
@@ -513,12 +503,12 @@ deploy-bbdd ()
     return "$retVal"
 }
 
-#----------------------------------------------------------
-#	FUNCTION: deploy-batch
-#
-#	 PURPOSE: 
-#----------------------------------------------------------
-deploy-batch ()
+#=== FUNCTION ================================================================
+# NAME: deploy_batch
+# DESCRIPTION: 
+# PARAMETER 1: ---
+#=============================================================================
+deploy_batch ()
 {
     retVal=0 
     if [ $1 == "INSTALL" ]; then    
@@ -533,12 +523,12 @@ deploy-batch ()
     return "$retVal"
 }
 
-#----------------------------------------------------------
-#	FUNCTION: finish-deploy
-#
-#	 PURPOSE: 
-#----------------------------------------------------------
-finish-deploy () 
+#=== FUNCTION ================================================================
+# NAME: finish_deploy
+# DESCRIPTION: 
+# PARAMETER 1: ---
+#=============================================================================
+finish_deploy () 
 {
     retVal=0 
     if [ $1 == "INSTALL" ]; then    
